@@ -190,7 +190,14 @@ button { font-family: inherit; cursor: pointer; color: inherit; }
   border: 1px solid var(--okraj);
   border-radius: 14px;
   padding: 10px 12px;
+  transition: transform 0.2s ease;
+  touch-action: pan-y;
 }
+
+/* Swipe gesta: doprava = splnit, doleva = smazat */
+.ukol.swipuje { transition: none; }
+.ukol.swipe-vpravo { border-color: var(--uspech); background: color-mix(in srgb, var(--uspech) 14%, var(--karta)); }
+.ukol.swipe-vlevo { border-color: var(--nebezpeci); background: color-mix(in srgb, var(--nebezpeci) 14%, var(--karta)); }
 
 .ukol.prioritni { border-left: 4px solid var(--priorita); }
 
@@ -198,9 +205,10 @@ button { font-family: inherit; cursor: pointer; color: inherit; }
 .ukol.hotovo .ukol-text { text-decoration: line-through; }
 
 .check {
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
+  position: relative;
   border-radius: 50%;
   border: 2px solid var(--akcent);
   background: transparent;
@@ -208,6 +216,13 @@ button { font-family: inherit; cursor: pointer; color: inherit; }
   font-size: 1rem;
   line-height: 1;
   transition: transform 0.1s, background 0.15s;
+}
+
+/* Neviditelně zvětšený dotykový cíl odškrtnutí (celkem ~56 px) */
+.check::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
 }
 .ukol.hotovo .check { background: var(--uspech); border-color: var(--uspech); color: #fff; }
 .check:active { transform: scale(0.88); }
@@ -232,6 +247,22 @@ button { font-family: inherit; cursor: pointer; color: inherit; }
 .ukol .ikona-btn[data-akce="zaba"].je-zaba { border-color: var(--zaba); background: color-mix(in srgb, var(--zaba) 20%, transparent); }
 
 .prazdny-text { text-align: center; color: var(--text-tlum); margin-top: 32px; font-size: 0.95rem; }
+
+/* Sbalená sekce splněných úkolů z minulých dní */
+.splnene-toggle {
+  width: 100%;
+  background: none;
+  border: 1px dashed var(--okraj);
+  border-radius: 12px;
+  color: var(--text-tlum);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 10px;
+  margin-top: 14px;
+  text-align: left;
+}
+
+#seznam-splnenych { margin-top: 8px; }
 
 /* ===== Časovač ===== */
 .casovac-rezimy { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -447,7 +478,18 @@ button { font-family: inherit; cursor: pointer; color: inherit; }
   z-index: 100;
 }
 
-.toast.zobrazit { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.zobrazit { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+
+.toast-zpet {
+  background: var(--akcent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 5px 14px;
+  margin-left: 10px;
+}
 
 .toast .toast-body { display: block; font-size: 0.8rem; color: var(--uspech); margin-top: 2px; }
 

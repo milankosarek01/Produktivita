@@ -57,6 +57,9 @@ const BODY_ZABA = 50;
 
 const LIMIT_PRACE_SEKUND = 50 * 60; // po 50 minutách práce výzva k protažení
 
+// Veřejný VAPID klíč pro push notifikace (soukromý je jen na serveru)
+const VAPID_VEREJNY_KLIC = 'BI8ewQ7xVLEOwBLHtgC-3iuuov1YRyqZbcVbb5Lem0xv71Oc7a_Mad3pu2Nru-5Ik6t5ZROZ5EYHKyj9aBi-pIY';
+
 // ----- Odznaky -----
 const ODZNAKY = [
   { id: 'prvni-ukol',  emoji: '🌟', nazev: 'První krok',       popis: 'Splň první úkol',        kdyz: () => celkemSplneno() >= 1 },
@@ -98,6 +101,9 @@ let vybranyDen = dnes();
 let fokusPoradi = 0;
 let posledniTik = Date.now();
 let toastCasovac = null;
+let rozbalenoSplnene = false; // sekce „Splněné z minulých dní"
+let swipe = null;             // rozpracované swipe gesto
+let wakeLock = null;          // zámek displeje během časovače
 
 // ============================================================
 // Pomocné funkce
@@ -247,6 +253,20 @@ function ukazToast(text, podtext) {
   toastCasovac = setTimeout(() => el.classList.remove('zobrazit'), 3000);
 }
 
+// Toast s tlačítkem Zpět (např. po smazání úkolu)
+function ukazToastZpet(text, priZpet) {
+  const el = document.getElementById('toast');
+  el.innerHTML = esc(text) + '<button id="toast-zpet-btn" class="toast-zpet">Zpět</button>';
+  document.getElementById('toast-zpet-btn').addEventListener('click', () => {
+    clearTimeout(toastCasovac);
+    el.classList.remove('zobrazit');
+    priZpet();
+  });
+  el.classList.add('zobrazit');
+  clearTimeout(toastCasovac);
+  toastCasovac = setTimeout(() => el.classList.remove('zobrazit'), 5000);
+}
+
 // ============================================================
 // Úrovně, body, odznaky
 // ============================================================
@@ -288,7 +308,7 @@ function zkontrolujOdznaky() {
 // ============================================================
 
 function pridejUkol(text, priorita, opakovani, termin, terminCas) {
-  stav.ukoly.push({
+  const ukol = {
     id: novyId(),
     text,
     priorita,
@@ -296,11 +316,14 @@ function pridejUkol(text, priorita, opakovani, termin, terminCas) {
     termin: termin || null,
     terminCas: terminCas || null,
     pripomenuto: false,
+    pushId: null,
     hotovo: false,
     hotovoDatum: null,
     ziskaneBody: 0,
     vytvoreno: Date.now(),
-  });
+  };
+  stav.ukoly.push(ukol);
+  naplanujPripominku(ukol);
   uloz();
   renderVse();
 }
@@ -329,6 +352,8 @@ function prepniHotovo(id) {
     } else {
       ukazToast(dalsiPochvala(), `+${ziskane} bodů`);
     }
+    zrusPush(u.pushId);
+    u.pushId = null;
     zkontrolujOdznaky();
   } else {
     stav.body = Math.max(0, stav.body - (u.ziskaneBody || 0));
@@ -344,11 +369,25 @@ function prepniHotovo(id) {
 }
 
 function smazUkol(id) {
-  if (!confirm('Opravdu smazat tento úkol?')) return;
-  stav.ukoly = stav.ukoly.filter(u => u.id !== id);
-  if (stav.zaba && stav.zaba.ukolId === id) stav.zaba = null;
+  const index = stav.ukoly.findIndex(u => u.id === id);
+  if (index === -1) return;
+  const ukol = stav.ukoly[index];
+  const bylaZaba = stav.zaba && stav.zaba.ukolId === id ? stav.zaba : null;
+
+  stav.ukoly.splice(index, 1);
+  if (bylaZaba) stav.zaba = null;
+  zrusPush(ukol.pushId);
+  ukol.pushId = null;
   uloz();
   renderVse();
+
+  ukazToastZpet('🗑️ Úkol smazán.', () => {
+    stav.ukoly.splice(Math.min(index, stav.ukoly.length), 0, ukol);
+    if (bylaZaba) stav.zaba = bylaZaba;
+    naplanujPripominku(ukol);
+    uloz();
+    renderVse();
+  });
 }
 
 function prepniZabu(id) {
@@ -413,15 +452,30 @@ function renderUkoly() {
   document.getElementById('pohled-seznam').hidden = jeMatice;
   document.getElementById('pohled-matice').hidden = !jeMatice;
 
-  // Seznam: nesplněné (priorita první), pak splněné
+  // Seznam: aktivní (priorita první, nejnovější nahoře), pak dnes splněné.
+  // Splněné z minulých dní jdou do sbalené sekce, ať se seznam nezanáší.
   const ostatni = stav.ukoly.filter(u => !zabaUkol || u.id !== zabaUkol.id);
-  ostatni.sort((a, b) => {
-    if (a.hotovo !== b.hotovo) return a.hotovo ? 1 : -1;
+  const aktivni = ostatni.filter(u => !u.hotovo);
+  const hotoveDnes = ostatni.filter(u => u.hotovo && u.hotovoDatum === dnes());
+  const hotoveStarsi = ostatni.filter(u => u.hotovo && u.hotovoDatum !== dnes());
+
+  aktivni.sort((a, b) => {
     if (a.priorita !== b.priorita) return a.priorita ? -1 : 1;
-    return a.vytvoreno - b.vytvoreno;
+    return b.vytvoreno - a.vytvoreno;
   });
-  seznam.innerHTML = ostatni.map(u => ukolHTML(u, false)).join('');
+  hotoveDnes.sort((a, b) => b.vytvoreno - a.vytvoreno);
+  hotoveStarsi.sort((a, b) => (b.hotovoDatum || '').localeCompare(a.hotovoDatum || ''));
+
+  seznam.innerHTML = [...aktivni, ...hotoveDnes].map(u => ukolHTML(u, false)).join('');
   prazdny.hidden = stav.ukoly.length > 0;
+
+  const splneneSekce = document.getElementById('splnene-sekce');
+  splneneSekce.hidden = hotoveStarsi.length === 0;
+  document.getElementById('splnene-toggle').textContent =
+    `${rozbalenoSplnene ? '▾' : '▸'} Splněné z minulých dní (${hotoveStarsi.length})`;
+  const seznamSplnenych = document.getElementById('seznam-splnenych');
+  seznamSplnenych.hidden = !rozbalenoSplnene;
+  seznamSplnenych.innerHTML = rozbalenoSplnene ? hotoveStarsi.map(u => ukolHTML(u, false)).join('') : '';
 
   if (jeMatice) renderMatice();
 }
@@ -580,8 +634,32 @@ function prepniNavyk(navykId, datum) {
 
 const REZIMY = { fokus: 25 * 60, pauza: 5 * 60 };
 
+// Wake Lock: dokud časovač běží, displej nezhasne
+async function poridWakeLock() {
+  try {
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+  } catch (e) { /* prohlížeč to neumí nebo zakázal – nevadí */ }
+}
+
+function uvolniWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+
+function pushTextCasovace() {
+  const r = stav.casovac.rezim;
+  if (r === 'fokus') return ['🍅 Pomodoro hotovo!', 'Dej si zaslouženou pauzu.'];
+  if (r === 'pauza') return ['☕ Pauza skončila', 'Jdeme na to! 💪'];
+  return ['⏰ Čas vypršel!', ''];
+}
+
 function nastavRezim(rezim) {
   const c = stav.casovac;
+  zrusPush(c.pushId);
+  c.pushId = null;
+  uvolniWakeLock();
   c.rezim = rezim;
   c.bezi = false;
   c.konecV = null;
@@ -599,10 +677,21 @@ function startPauza() {
     c.zbyva = Math.max(0, Math.round((c.konecV - Date.now()) / 1000));
     c.bezi = false;
     c.konecV = null;
+    zrusPush(c.pushId);
+    c.pushId = null;
+    uvolniWakeLock();
   } else {
     if (c.zbyva <= 0) c.zbyva = c.trvani;
     c.konecV = Date.now() + c.zbyva * 1000;
     c.bezi = true;
+    poridWakeLock();
+    const [titulek, text] = pushTextCasovace();
+    naplanujPush(titulek, text, c.zbyva).then(id => {
+      if (id) {
+        stav.casovac.pushId = id;
+        uloz();
+      }
+    });
   }
   uloz();
   renderCasovac();
@@ -613,6 +702,9 @@ function resetCasovace() {
   c.bezi = false;
   c.konecV = null;
   c.zbyva = c.trvani;
+  zrusPush(c.pushId);
+  c.pushId = null;
+  uvolniWakeLock();
   uloz();
   renderCasovac();
 }
@@ -621,6 +713,10 @@ function casovacDobehl() {
   const c = stav.casovac;
   c.bezi = false;
   c.konecV = null;
+  // Doběhl v otevřené aplikaci – naplánovaný push už není potřeba
+  zrusPush(c.pushId);
+  c.pushId = null;
+  uvolniWakeLock();
 
   zapipej();
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
@@ -686,6 +782,7 @@ function renderCasovacDisplej() {
   document.getElementById('casovac-displej').textContent = formatCas(c.zbyva);
   const procent = c.trvani > 0 ? (c.zbyva / c.trvani) * 100 : 0;
   document.getElementById('casovac-pruh-vypln').style.width = procent + '%';
+  document.title = c.bezi ? `${formatCas(c.zbyva)} – Produktivita` : 'Produktivita';
 
   const praceMin = Math.floor(stav.prace.sekundy / 60);
   document.getElementById('prace-info').textContent =
@@ -760,11 +857,78 @@ function prepniNotifikace() {
     if (povoleni === 'granted') {
       stav.nastaveni.notifikace = true;
       ukazToast('🔔 Notifikace zapnuty.');
+      prihlasKPushum();
     } else {
       ukazToast('⚠️ Notifikace jsou v prohlížeči zakázané.');
     }
     uloz();
     renderNastaveni();
+  });
+}
+
+// ----- Push notifikace přes server (fungují i při zamčeném telefonu) -----
+
+function base64NaUint8Array(base64) {
+  const doplneni = '='.repeat((4 - (base64.length % 4)) % 4);
+  const upraveny = (base64 + doplneni).replace(/-/g, '+').replace(/_/g, '/');
+  const surova = atob(upraveny);
+  return Uint8Array.from([...surova].map(z => z.charCodeAt(0)));
+}
+
+async function prihlasKPushum() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const registrace = await navigator.serviceWorker.ready;
+    const odber = await registrace.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: base64NaUint8Array(VAPID_VEREJNY_KLIC),
+    });
+    stav.nastaveni.pushSubscription = odber.toJSON();
+    uloz();
+  } catch (e) {
+    console.warn('Push odběr se nepovedl (upozornění budou fungovat jen v otevřené aplikaci):', e);
+  }
+}
+
+// Naplánuje push na serveru; vrátí messageId (pro případné storno), nebo null
+async function naplanujPush(titulek, text, delaySekundy) {
+  const odber = stav.nastaveni.pushSubscription;
+  if (!odber || !stav.nastaveni.notifikace || delaySekundy < 5) return null;
+  try {
+    const odpoved = await fetch('api/naplanuj', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: odber, titulek, text, delaySekundy }),
+    });
+    if (!odpoved.ok) return null;
+    return (await odpoved.json()).messageId || null;
+  } catch (e) {
+    return null; // offline nebo server nedostupný – aplikace jede dál
+  }
+}
+
+async function zrusPush(messageId) {
+  if (!messageId) return;
+  try {
+    await fetch('api/zrus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId }),
+    });
+  } catch (e) { /* storno se nepovedlo – notifikace přijde navíc, nevadí */ }
+}
+
+// Naplánuje připomenutí úkolu s termínem a časem (15 minut předem)
+function naplanujPripominku(ukol) {
+  if (!ukol.termin || !ukol.terminCas || ukol.hotovo) return;
+  const kdy = new Date(`${ukol.termin}T${ukol.terminCas}:00`).getTime() - 15 * 60000;
+  const delay = (kdy - Date.now()) / 1000;
+  if (delay < 5) return;
+  naplanujPush('⏰ Blíží se termín úkolu', ukol.text, delay).then(id => {
+    if (id) {
+      ukol.pushId = id;
+      uloz();
+    }
   });
 }
 
@@ -898,6 +1062,9 @@ function ulozUzaverku() {
     if (u && !u.hotovo) {
       u.termin = zitra();
       u.pripomenuto = false;
+      zrusPush(u.pushId);
+      u.pushId = null;
+      naplanujPripominku(u);
       presunuto++;
     }
   });
@@ -1031,10 +1198,77 @@ function renderVse() {
 }
 
 // ============================================================
+// Swipe gesta na úkolech (doprava = splnit, doleva = smazat)
+// ============================================================
+
+function nastavSwipe() {
+  const main = document.querySelector('main');
+
+  main.addEventListener('touchstart', e => {
+    const radek = e.target.closest('.ukol');
+    if (!radek || e.touches.length !== 1) {
+      swipe = null;
+      return;
+    }
+    swipe = {
+      el: radek,
+      id: radek.dataset.id,
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      dx: 0,
+      tazeni: false,
+    };
+  }, { passive: true });
+
+  main.addEventListener('touchmove', e => {
+    if (!swipe) return;
+    const dx = e.touches[0].clientX - swipe.x;
+    const dy = e.touches[0].clientY - swipe.y;
+    if (!swipe.tazeni) {
+      if (Math.abs(dy) > Math.abs(dx)) { swipe = null; return; } // svislé = skrolování
+      if (Math.abs(dx) < 12) return;
+      swipe.tazeni = true;
+      swipe.el.classList.add('swipuje');
+    }
+    e.preventDefault();
+    swipe.dx = dx;
+    swipe.el.style.transform = `translateX(${dx}px)`;
+    swipe.el.classList.toggle('swipe-vpravo', dx > 40);
+    swipe.el.classList.toggle('swipe-vlevo', dx < -40);
+  }, { passive: false });
+
+  const konecSwipu = () => {
+    if (!swipe) return;
+    const { el, id, dx, tazeni } = swipe;
+    swipe = null;
+    el.classList.remove('swipuje', 'swipe-vpravo', 'swipe-vlevo');
+    el.style.transform = '';
+    if (!tazeni) return;
+    if (dx > 80) prepniHotovo(id);
+    else if (dx < -80) smazUkol(id);
+  };
+  main.addEventListener('touchend', konecSwipu);
+  main.addEventListener('touchcancel', konecSwipu);
+}
+
+// ============================================================
 // Události
 // ============================================================
 
 function nastavUdalosti() {
+  nastavSwipe();
+
+  // Sbalená sekce splněných z minulých dní
+  document.getElementById('splnene-toggle').addEventListener('click', () => {
+    rozbalenoSplnene = !rozbalenoSplnene;
+    renderUkoly();
+  });
+
+  // Po návratu do aplikace obnovit zámek displeje, pokud časovač běží
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && stav.casovac.bezi) poridWakeLock();
+  });
+
   // Přepínání sekcí spodní lištou
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1232,10 +1466,18 @@ function start() {
   zkontrolujPripominky();
   setInterval(zkontrolujPripominky, 30000);
 
-  // Service worker – díky němu aplikace funguje offline
+  // Service worker – díky němu aplikace funguje offline a přijímá push notifikace
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => { /* offline režim nebude, aplikace ale funguje dál */ });
+    navigator.serviceWorker.register('sw.js')
+      .then(() => {
+        // obnovit push odběr (mohl se v prohlížeči změnit)
+        if (stav.nastaveni.notifikace && Notification.permission === 'granted') prihlasKPushum();
+      })
+      .catch(() => { /* offline režim nebude, aplikace ale funguje dál */ });
   }
+
+  // Časovač možná běží z minula – obnovit zámek displeje
+  if (stav.casovac.bezi) poridWakeLock();
 }
 
 start();

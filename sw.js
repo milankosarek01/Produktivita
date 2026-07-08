@@ -1,6 +1,6 @@
 // Service worker – ukládá aplikaci do mezipaměti, aby fungovala offline.
 // Při změně souborů stačí zvýšit číslo verze níže.
-const VERZE = 'produktivita-v2';
+const VERZE = 'produktivita-v3';
 
 const SOUBORY = [
   './',
@@ -23,6 +23,31 @@ self.addEventListener('activate', udalost => {
     caches.keys()
       .then(klice => Promise.all(klice.filter(k => k !== VERZE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
+  );
+});
+
+// Push notifikace ze serveru – zobrazí se i při zamčeném telefonu / zavřené aplikaci
+self.addEventListener('push', udalost => {
+  let data = {};
+  try { data = udalost.data.json(); } catch (e) { /* prázdná zpráva */ }
+  udalost.waitUntil(
+    self.registration.showNotification(data.titulek || 'Produktivita', {
+      body: data.text || '',
+      icon: 'icons/icon-192.png',
+      badge: 'icons/icon-192.png',
+      vibrate: [200, 100, 200],
+    })
+  );
+});
+
+// Klepnutí na notifikaci otevře (nebo vyzvedne) aplikaci
+self.addEventListener('notificationclick', udalost => {
+  udalost.notification.close();
+  udalost.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(okna => {
+      if (okna.length) return okna[0].focus();
+      return clients.openWindow('./');
+    })
   );
 });
 

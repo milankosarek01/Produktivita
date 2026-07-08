@@ -1,0 +1,9 @@
+{
+  "name": "produktivita",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Osobní produktivní PWA – serverové funkce pro push notifikace",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
