@@ -1,6 +1,6 @@
 // Service worker – ukládá aplikaci do mezipaměti, aby fungovala offline.
 // Při změně souborů stačí zvýšit číslo verze níže.
-const VERZE = 'produktivita-v1';
+const VERZE = 'produktivita-v2';
 
 const SOUBORY = [
   './',

@@ -30,6 +30,14 @@
 
       <div id="zaba-box" class="zaba-box"></div>
 
+      <div class="ukoly-nastroje">
+        <div class="prepinac">
+          <button id="pohled-seznam-btn" class="prepinac-btn aktivni">☰ Seznam</button>
+          <button id="pohled-matice-btn" class="prepinac-btn">⊞ Matice</button>
+        </div>
+        <button id="fokus-btn" class="volba-btn fokus-spoustec">🎯 Fokus</button>
+      </div>
+
       <form id="pridat-form" class="pridat-form" autocomplete="off">
         <div class="pridat-radek">
           <input type="text" id="novy-text" placeholder="Co je potřeba udělat?" maxlength="200" required>
@@ -42,11 +50,65 @@
             <option value="denne">🔁 Denně</option>
             <option value="tydne">🔁 Týdně</option>
           </select>
+          <input type="date" id="termin-datum" class="volba-select" title="Termín úkolu">
+          <input type="time" id="termin-cas" class="volba-select" title="Čas termínu (pro připomenutí)">
         </div>
       </form>
 
-      <ul id="seznam-ukolu" class="seznam-ukolu"></ul>
-      <p id="prazdny-seznam" class="prazdny-text" hidden>Zatím žádné úkoly. Přidej první! 👆</p>
+      <div id="pohled-seznam">
+        <ul id="seznam-ukolu" class="seznam-ukolu"></ul>
+        <p id="prazdny-seznam" class="prazdny-text" hidden>Zatím žádné úkoly. Přidej první! 👆</p>
+      </div>
+
+      <div id="pohled-matice" class="matice" hidden>
+        <div class="kvadrant kvadrant-1">
+          <div class="kvadrant-titulek">🔥 Udělej hned</div>
+          <div class="kvadrant-podtitulek">důležité + naléhavé</div>
+          <ul id="kvadrant-1" class="kvadrant-seznam"></ul>
+        </div>
+        <div class="kvadrant kvadrant-2">
+          <div class="kvadrant-titulek">📅 Naplánuj</div>
+          <div class="kvadrant-podtitulek">důležité, nespěchá</div>
+          <ul id="kvadrant-2" class="kvadrant-seznam"></ul>
+        </div>
+        <div class="kvadrant kvadrant-3">
+          <div class="kvadrant-titulek">⚡ Rychle odbav</div>
+          <div class="kvadrant-podtitulek">naléhavé, nedůležité</div>
+          <ul id="kvadrant-3" class="kvadrant-seznam"></ul>
+        </div>
+        <div class="kvadrant kvadrant-4">
+          <div class="kvadrant-titulek">🌿 Později</div>
+          <div class="kvadrant-podtitulek">nespěchá, nedůležité</div>
+          <ul id="kvadrant-4" class="kvadrant-seznam"></ul>
+        </div>
+        <p class="matice-napoveda">⭐ priorita = důležité · 📅 termín dnes nebo prošlý = naléhavé</p>
+      </div>
+    </section>
+
+    <!-- ===== SEKCE: KALENDÁŘ ===== -->
+    <section id="sekce-kalendar" class="sekce">
+      <div class="kal-hlavicka">
+        <button id="kal-pred-btn" class="ikona-btn">◀</button>
+        <div id="kal-mesic-nazev" class="kal-mesic-nazev"></div>
+        <button id="kal-dalsi-btn" class="ikona-btn">▶</button>
+      </div>
+      <div class="kal-dny-nazvy">
+        <span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span>
+      </div>
+      <div id="kal-mrizka" class="kal-mrizka"></div>
+
+      <div class="karta">
+        <div id="den-titulek" class="karta-titulek"></div>
+        <div id="den-ukoly"></div>
+        <div id="den-bloky" class="den-bloky"></div>
+        <form id="blok-form" class="blok-form" autocomplete="off">
+          <input type="time" id="blok-od" required title="Od">
+          <span class="blok-pomlcka">–</span>
+          <input type="time" id="blok-do" required title="Do">
+          <input type="text" id="blok-text" placeholder="Co budeš dělat?" maxlength="100" required>
+          <button type="submit" class="pridat-btn blok-pridat" title="Přidat blok">+</button>
+        </form>
+      </div>
     </section>
 
     <!-- ===== SEKCE: ČASOVAČ ===== -->
@@ -75,10 +137,42 @@
       <div class="pomodora-dnes">
         Dnešní pomodora: <span id="pomodora-pocet">0</span> 🍅
       </div>
+      <div id="prace-info" class="prace-info"></div>
+    </section>
+
+    <!-- ===== SEKCE: NÁVYKY ===== -->
+    <section id="sekce-navyky" class="sekce">
+      <form id="navyk-form" class="pridat-form" autocomplete="off">
+        <div class="pridat-radek">
+          <input type="text" id="navyk-text" placeholder="Nový návyk (např. Pít vodu 💧)" maxlength="60" required>
+          <button type="submit" class="pridat-btn" title="Přidat návyk">+</button>
+        </div>
+      </form>
+
+      <div id="navyky-hlavicka" class="navyk-radek navyk-hlavicka" hidden>
+        <div class="navyk-nazev"></div>
+        <div class="navyk-dny" id="navyky-dny-nazvy"></div>
+        <div class="navyk-akce"></div>
+      </div>
+      <div id="navyky-seznam"></div>
+      <p id="navyky-prazdne" class="prazdny-text" hidden>Zatím žádné návyky.<br>Přidej třeba „Ranní protažení" 🤸</p>
     </section>
 
     <!-- ===== SEKCE: PŘEHLED ===== -->
     <section id="sekce-prehled" class="sekce">
+
+      <div class="karta">
+        <div class="karta-titulek">Jak se dnes cítíš?</div>
+        <div class="nalada-tlacitka" id="nalada-tlacitka">
+          <button data-nalada="1" title="Hrozně">😞</button>
+          <button data-nalada="2" title="Nic moc">😕</button>
+          <button data-nalada="3" title="Ujde to">😐</button>
+          <button data-nalada="4" title="Dobře">🙂</button>
+          <button data-nalada="5" title="Skvěle">😄</button>
+        </div>
+        <div id="nalada-graf" class="nalada-graf"></div>
+      </div>
+
       <div class="karta uroven-karta">
         <div class="uroven-hlavicka">
           <span id="uroven-nazev" class="uroven-nazev">Nováček</span>
@@ -108,18 +202,86 @@
       </div>
 
       <div class="karta">
-        <div class="karta-titulek">Posledních 7 dní</div>
+        <div class="karta-titulek">Statistiky týdne</div>
         <div id="tydenni-graf" class="tydenni-graf"></div>
+        <div class="graf-legenda">
+          <span><i class="legenda-ctverecek legenda-ukoly"></i> úkoly</span>
+          <span><i class="legenda-ctverecek legenda-pomodora"></i> pomodora</span>
+        </div>
         <p class="graf-napoveda">Splň aspoň 3 úkoly denně, ať ti roste streak 🔥</p>
+      </div>
+
+      <div class="karta">
+        <div class="karta-titulek">🏅 Odznaky</div>
+        <div id="odznaky-mrizka" class="odznaky-mrizka"></div>
+      </div>
+
+      <div class="karta">
+        <div class="karta-titulek">🌙 Večerní uzávěrka</div>
+        <div id="uzaverka-info" class="uzaverka-info"></div>
+        <button id="uzaverka-btn" class="hlavni-btn siroky">Uzavřít den</button>
+      </div>
+
+      <div class="karta">
+        <div class="karta-titulek">🔔 Připomenutí úkolů</div>
+        <p class="karta-text">Upozornění na úkoly s termínem (15 minut předem). Funguje, když je aplikace otevřená.</p>
+        <button id="notifikace-btn" class="vedlejsi-btn siroky">Zapnout notifikace</button>
       </div>
     </section>
   </main>
 
   <nav class="spodni-nav">
     <button class="nav-btn aktivni" data-cil="ukoly">✅<span>Úkoly</span></button>
+    <button class="nav-btn" data-cil="kalendar">📅<span>Kalendář</span></button>
     <button class="nav-btn" data-cil="casovac">⏱️<span>Časovač</span></button>
+    <button class="nav-btn" data-cil="navyky">🌱<span>Návyky</span></button>
     <button class="nav-btn" data-cil="prehled">📊<span>Přehled</span></button>
   </nav>
+
+  <!-- ===== Fokus režim (jeden úkol přes celou obrazovku) ===== -->
+  <div id="fokus-overlay" class="prekryv" hidden>
+    <button id="fokus-zavrit-btn" class="prekryv-zavrit" title="Zavřít">✕</button>
+    <div class="fokus-obsah">
+      <div class="fokus-popisek">Teď dělám:</div>
+      <div id="fokus-ukol-text" class="fokus-text"></div>
+      <div id="fokus-stitky" class="ukol-stitky fokus-stitky"></div>
+      <div class="fokus-tlacitka">
+        <button id="fokus-hotovo-btn" class="hlavni-btn">✅ Hotovo</button>
+        <button id="fokus-dalsi-btn" class="vedlejsi-btn">⏭ Další</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Večerní uzávěrka (modal) ===== -->
+  <div id="uzaverka-modal" class="prekryv" hidden>
+    <div class="modal-karta">
+      <div class="modal-hlavicka">
+        <h2>🌙 Večerní uzávěrka</h2>
+        <button id="uzaverka-zavrit-btn" class="ikona-btn" title="Zavřít">✕</button>
+      </div>
+
+      <div id="uzaverka-presun-blok">
+        <div class="modal-podtitulek">Nedodělané úkoly – zaškrtni, které přesunout na zítra:</div>
+        <div id="uzaverka-presun" class="uzaverka-presun"></div>
+      </div>
+
+      <div class="modal-podtitulek">Jedna věc, která se ti dnes povedla:</div>
+      <textarea id="povedlo-text" class="povedlo-text" rows="2" maxlength="300" placeholder="Např. Dokončil jsem prezentaci…"></textarea>
+
+      <div id="uzaverka-nalada-blok">
+        <div class="modal-podtitulek">Jak ses dnes celkově cítil?</div>
+        <div class="nalada-tlacitka" id="uzaverka-nalada">
+          <button data-nalada="1">😞</button>
+          <button data-nalada="2">😕</button>
+          <button data-nalada="3">😐</button>
+          <button data-nalada="4">🙂</button>
+          <button data-nalada="5">😄</button>
+        </div>
+      </div>
+
+      <button id="uzaverka-ulozit-btn" class="hlavni-btn siroky">Uzavřít den 🌙</button>
+    </div>
+  </div>
 
   <div id="toast" class="toast" role="status"></div>
 
