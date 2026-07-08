@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="cs" data-motiv="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Produktivita</title>
+  <meta name="description" content="Osobní produktivní aplikace – úkoly, žába dne, pomodoro, streak a body.">
+  <meta name="theme-color" content="#0f1117">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="hlavicka">
+    <h1>✅ Produktivita</h1>
+    <div class="hlavicka-prava">
+      <span class="body-chip" id="body-chip">🏆 0 b</span>
+      <button id="motiv-btn" class="ikona-btn" title="Přepnout světlý/tmavý režim">☀️</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== SEKCE: ÚKOLY ===== -->
+    <section id="sekce-ukoly" class="sekce aktivni">
+
+      <div id="zaba-box" class="zaba-box"></div>
+
+      <form id="pridat-form" class="pridat-form" autocomplete="off">
+        <div class="pridat-radek">
+          <input type="text" id="novy-text" placeholder="Co je potřeba udělat?" maxlength="200" required>
+          <button type="submit" class="pridat-btn" title="Přidat úkol">+</button>
+        </div>
+        <div class="pridat-volby">
+          <button type="button" id="priorita-btn" class="volba-btn" aria-pressed="false">⭐ Priorita</button>
+          <select id="opakovani-select" class="volba-select" title="Opakování úkolu">
+            <option value="">Jednorázový</option>
+            <option value="denne">🔁 Denně</option>
+            <option value="tydne">🔁 Týdně</option>
+          </select>
+        </div>
+      </form>
+
+      <ul id="seznam-ukolu" class="seznam-ukolu"></ul>
+      <p id="prazdny-seznam" class="prazdny-text" hidden>Zatím žádné úkoly. Přidej první! 👆</p>
+    </section>
+
+    <!-- ===== SEKCE: ČASOVAČ ===== -->
+    <section id="sekce-casovac" class="sekce">
+      <div class="casovac-rezimy">
+        <button class="rezim-btn aktivni" data-rezim="fokus">🍅 Soustředění<br><small>25 min</small></button>
+        <button class="rezim-btn" data-rezim="pauza">☕ Pauza<br><small>5 min</small></button>
+        <button class="rezim-btn" data-rezim="vlastni">⏱️ Vlastní</button>
+      </div>
+
+      <div id="vlastni-radek" class="vlastni-radek" hidden>
+        <label for="vlastni-min">Délka:</label>
+        <input type="number" id="vlastni-min" min="1" max="180" value="10"> minut
+      </div>
+
+      <div class="casovac-stred">
+        <div id="casovac-displej" class="casovac-displej">25:00</div>
+        <div class="casovac-pruh"><div id="casovac-pruh-vypln" class="casovac-pruh-vypln"></div></div>
+      </div>
+
+      <div class="casovac-tlacitka">
+        <button id="start-btn" class="hlavni-btn">▶ Start</button>
+        <button id="reset-btn" class="vedlejsi-btn">↺ Reset</button>
+      </div>
+
+      <div class="pomodora-dnes">
+        Dnešní pomodora: <span id="pomodora-pocet">0</span> 🍅
+      </div>
+    </section>
+
+    <!-- ===== SEKCE: PŘEHLED ===== -->
+    <section id="sekce-prehled" class="sekce">
+      <div class="karta uroven-karta">
+        <div class="uroven-hlavicka">
+          <span id="uroven-nazev" class="uroven-nazev">Nováček</span>
+          <span id="uroven-cislo" class="uroven-cislo">Úroveň 1</span>
+        </div>
+        <div class="uroven-pruh"><div id="uroven-pruh-vypln" class="uroven-pruh-vypln"></div></div>
+        <div id="uroven-popis" class="uroven-popis"></div>
+      </div>
+
+      <div class="statistiky-mrizka">
+        <div class="karta stat-karta">
+          <div class="stat-hodnota" id="stat-streak">0</div>
+          <div class="stat-popisek">🔥 Streak (dní v řadě)</div>
+        </div>
+        <div class="karta stat-karta">
+          <div class="stat-hodnota" id="stat-body">0</div>
+          <div class="stat-popisek">🏆 Celkem bodů</div>
+        </div>
+        <div class="karta stat-karta">
+          <div class="stat-hodnota" id="stat-dnes">0</div>
+          <div class="stat-popisek">✅ Dnes splněno</div>
+        </div>
+        <div class="karta stat-karta">
+          <div class="stat-hodnota" id="stat-pomodora">0</div>
+          <div class="stat-popisek">🍅 Pomodora dnes</div>
+        </div>
+      </div>
+
+      <div class="karta">
+        <div class="karta-titulek">Posledních 7 dní</div>
+        <div id="tydenni-graf" class="tydenni-graf"></div>
+        <p class="graf-napoveda">Splň aspoň 3 úkoly denně, ať ti roste streak 🔥</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="spodni-nav">
+    <button class="nav-btn aktivni" data-cil="ukoly">✅<span>Úkoly</span></button>
+    <button class="nav-btn" data-cil="casovac">⏱️<span>Časovač</span></button>
+    <button class="nav-btn" data-cil="prehled">📊<span>Přehled</span></button>
+  </nav>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
