@@ -9,6 +9,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Chybí subscription nebo delaySekundy' });
   }
 
+  const qstashUrl = process.env.QSTASH_URL || 'https://qstash-us-east-1.upstash.io';
   const cil = `https://${req.headers.host}/api/posli`;
   const hlavicky = {
     'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
@@ -21,7 +22,7 @@ module.exports = async (req, res) => {
     hlavicky['Upstash-Forward-x-vercel-protection-bypass'] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
   }
 
-  const odpoved = await fetch(`https://qstash.upstash.io/v2/publish/${cil}`, {
+  const odpoved = await fetch(`${qstashUrl}/v2/publish/${cil}`, {
     method: 'POST',
     headers: hlavicky,
     body: JSON.stringify({ subscription, titulek, text }),

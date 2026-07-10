@@ -7,7 +7,8 @@ module.exports = async (req, res) => {
   const { messageId } = req.body || {};
   if (!messageId) return res.status(400).json({ error: 'Chybí messageId' });
 
-  const odpoved = await fetch(`https://qstash.upstash.io/v2/messages/${messageId}`, {
+  const qstashUrl = process.env.QSTASH_URL || 'https://qstash-us-east-1.upstash.io';
+  const odpoved = await fetch(`${qstashUrl}/v2/messages/${messageId}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${process.env.QSTASH_TOKEN}` },
   });
